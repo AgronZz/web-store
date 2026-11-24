@@ -27,7 +27,7 @@ URBANSTORE allows customers to browse clothing products, search and filter produ
 ## Main Features
 
 ### Authentication and Authorization
-- User registration and login.
+- User login.
 - JWT-based authentication.
 - Password hashing.
 - Three user roles:
@@ -83,13 +83,16 @@ web-store/
 │   ├── package.json
 │   └── vite.config.js
 │
+├── database/
+│   └── web_store_db.sql
+│
 ├── .gitignore
-└── README.md
+└── ReadMe.md
 ```
 
 ## Installation and Setup
 
-### 1. Clone the repository
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/AgronZz/web-store.git
@@ -99,10 +102,15 @@ cd web-store
 ### 2. Database Setup
 
 1. Install and start MySQL Server.
-2. Open MySQL Workbench.
-3. Create a database named `web_store_db`.
-4. Create the required tables and relationships.
-5. Insert the initial roles and sample data.
+2. Open MySQL Workbench and connect to your MySQL server.
+3. Navigate to **Server → Data Import**.
+4. Select **Import from Self-Contained File**.
+5. Browse to `database/web_store_db.sql` inside the project folder.
+6. Select the appropriate target schema if requested. The SQL export includes the database creation statement for `web_store_db`.
+7. Click **Start Import**.
+8. After importing, refresh the Schemas panel and verify that `web_store_db` is available.
+
+The SQL file contains the database structure, relationships, and sample data.
 
 ### 3. Backend Setup
 
@@ -113,7 +121,7 @@ python3 -m venv backend/venv
 source backend/venv/bin/activate
 ```
 
-Install the dependencies:
+Install dependencies:
 
 ```bash
 pip install -r backend/requirements.txt
@@ -127,6 +135,17 @@ cp backend/.env.example backend/.env
 
 Edit `backend/.env` and provide your own MySQL credentials and JWT secret key.
 
+Example configuration:
+
+```env
+DB_USER=your_mysql_username
+DB_PASSWORD=your_mysql_password
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=web_store_db
+JWT_SECRET_KEY=your_secret_key
+```
+
 Start the Flask server:
 
 ```bash
@@ -136,13 +155,11 @@ python app.py
 
 The backend will run at:
 
-```text
-http://127.0.0.1:5000
-```
+`http://127.0.0.1:5000`
 
 ### 4. Frontend Setup
 
-Open a second terminal:
+Open a second terminal from the project root:
 
 ```bash
 cd web-store/frontend
@@ -152,9 +169,7 @@ npm run dev
 
 The frontend will run at the address displayed by Vite, normally:
 
-```text
-http://localhost:5173
-```
+`http://localhost:5173`
 
 ## API Overview
 
@@ -162,16 +177,18 @@ The backend exposes REST API endpoints under `/api`.
 
 | Resource | Endpoint | Operations |
 |---|---|---|
-| Authentication | `/api/users/login` | Login |
+| Authentication | `/api/users/login` | User login |
 | Users | `/api/users/` | User management |
 | Products | `/api/products/` | Product CRUD |
-| Product Search | `/api/products/search` | Search and filters |
+| Product Search | `/api/products/search` | Search and combined filters |
 | Orders | `/api/orders/` | Create and retrieve orders |
-| Customer Orders | `/api/orders/my-orders` | Customer order history |
+| Customer Orders | `/api/orders/my-orders` | Retrieve personal order history |
 | Order Management | `/api/orders/{id}/confirm` | Confirm order |
 | Order Management | `/api/orders/{id}/cancel` | Cancel order |
 | Order Status | `/api/orders/{id}/status` | Update order status |
-| Reports | `/api/reports/` | Sales reports |
+| Daily Reports | `/api/reports/daily-earnings` | Daily earnings |
+| Monthly Reports | `/api/reports/monthly-earnings` | Monthly earnings |
+| Top Products | `/api/reports/top-products` | Best-selling products |
 
 Protected endpoints require a valid JWT access token and appropriate user permissions.
 
@@ -179,8 +196,8 @@ Protected endpoints require a valid JWT access token and appropriate user permis
 
 | Role | Permissions |
 |---|---|
-| Admin | Full application and user management access |
-| Advanced User | Product, order, and report management |
+| Admin | User management, product management, orders, and reports |
+| Advanced User | Product management, orders, and reports |
 | Simple User | Browse products, place orders, and view personal order history |
 
 ## Security
@@ -195,6 +212,6 @@ Protected endpoints require a valid JWT access token and appropriate user permis
 
 **Agron Berisha**
 
-GitHub: [AgronZz](https://github.com/AgronZz)
+GitHub: https://github.com/AgronZz
 
-Repository: [web-store](https://github.com/AgronZz/web-store)
+Repository: https://github.com/AgronZz/web-store
