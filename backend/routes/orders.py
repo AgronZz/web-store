@@ -11,24 +11,31 @@ orders_bp = Blueprint("orders", __name__, url_prefix="/api/orders")
 
 
 
+
 @orders_bp.route("/", methods=["POST"])
 @roles_required("Admin", "Advanced User", "Simple User")
 def create_order():
     data = request.get_json(silent=True)
 
     if not isinstance(data, dict):
-        return jsonify({"success": False, "message": "Valid JSON required"}), 400
+        return jsonify({
+            "success": False,
+            "message": "Valid JSON required"
+        }), 400
 
     items = data.get("items")
 
     if not isinstance(items, list) or not items:
-        return jsonify({"success": False, "message": "Order must contain products"}), 400
+        return jsonify({
+            "success": False,
+            "message": "Order must contain products"
+        }), 400
 
     try:
         # Identify the logged-in user from the JWT token
         user_id = int(get_jwt_identity())
 
-        # Find this user's client profile
+        # Find the customer's profile
         client = db.session.execute(
             text("""
                 SELECT client_id
@@ -48,19 +55,38 @@ def create_order():
 
         total_amount = Decimal("0.00")
         order_items = []
+        requested_quantities = {}
 
+        # Validate and combine requested quantities
         for item in items:
-            product_id = int(item["product_id"])
-            quantity = int(item["quantity"])
+            if not isinstance(item, dict):
+                raise ValueError()
+
+            raw_product_id = item.get("product_id")
+            raw_quantity = item.get("quantity")
+
+            if isinstance(raw_product_id, bool) or isinstance(raw_quantity, bool):
+                raise ValueError()
+
+            product_id = int(raw_product_id)
+            quantity = int(raw_quantity)
 
             if product_id <= 0 or quantity <= 0:
                 raise ValueError()
 
+            requested_quantities[product_id] = (
+                requested_quantities.get(product_id, 0) + quantity
+            )
+
+        # Check product availability before creating the order
+        for product_id, requested_quantity in requested_quantities.items():
+
             product = db.session.execute(
                 text("""
-                    SELECT product_id, price
+                    SELECT product_id, name, price, initial_quantity
                     FROM products
-                    WHERE product_id = :id AND is_active = 1
+                    WHERE product_id = :id
+                    AND is_active = 1
                 """),
                 {"id": product_id}
             ).mappings().first()
@@ -71,16 +97,47 @@ def create_order():
                     "message": f"Product {product_id} not found"
                 }), 404
 
+            # Calculate quantities already committed to orders
+            committed_quantity = db.session.execute(
+                text("""
+                    SELECT COALESCE(SUM(oi.quantity), 0) AS total
+                    FROM order_items oi
+                    JOIN orders o ON o.order_id = oi.order_id
+                    WHERE oi.product_id = :product_id
+                    AND o.status IN (
+                        'confirmed',
+                        'processing',
+                        'shipped',
+                        'delivered'
+                    )
+                """),
+                {"product_id": product_id}
+            ).scalar()
+
+            available_quantity = (
+                int(product["initial_quantity"]) - int(committed_quantity)
+            )
+
+            if requested_quantity > available_quantity:
+                return jsonify({
+                    "success": False,
+                    "message": f"Insufficient stock for {product['name']}",
+                    "available_quantity": available_quantity,
+                    "requested_quantity": requested_quantity
+                }), 409
+
+            # Calculate the order total
             unit_price = Decimal(str(product["price"]))
-            total_amount += unit_price * quantity
+
+            total_amount += unit_price * requested_quantity
 
             order_items.append({
                 "product_id": product_id,
-                "quantity": quantity,
+                "quantity": requested_quantity,
                 "unit_price": unit_price
             })
 
-        # Create order for the authenticated user's client profile
+        # Create the pending order
         result = db.session.execute(
             text("""
                 INSERT INTO orders
@@ -95,6 +152,7 @@ def create_order():
 
         order_id = result.lastrowid
 
+        # Insert order items
         for item in order_items:
             db.session.execute(
                 text("""
