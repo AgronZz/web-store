@@ -1,0 +1,26 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# React / Node
+node_modules/
+dist/
+build/
+
+# Editor and operating system files
+.DS_Store
+.vscode/
+
+# Logs
+*.log
